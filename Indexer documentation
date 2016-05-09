@@ -1,0 +1,132 @@
+***Indexer Design Spec***
+-------------------------
+
+In the following Design Module we describe the input, data flow, and output specification for the indexer module. The pseudo code for the indexer module is also given.
+
+(1) *Input*
+ 
+Command Input
+
+./indexer [TARGET_DIRECTORY] [RESULTS FILENAME] [REWRITTEN FILENAME]
+
+Example command input
+
+./indexer ./data/ index.dat new_index.dat
+
+[TARGET DIRECTORY] ./data
+Requirement: The directory must exist and be already created by the user
+Usage: The indexer informs the suer if the directory can not be found.
+
+[RESULTS FILENAME] index.dat
+Requirement: The File should not already exist. If a file exists with this filename it will be overwritten.
+
+[REWRITTEN FILENAME] new_index.dat
+Requirement: The File should not already exist. If a file exists with this filename it will be overwritten.
+Usage: Optional parameter. Used only if user wishes to test writing to Index and constructing Index functionality.
+
+(2) *Output*
+--------------------
+ If two parameters are given, the program writes the Index to the [RESULTS FILENAME]. If the optional parameter is given, a file [REWRITTEN FILENAME] will also be created as well.
+ These files contain a printed out version of the Index. Each line contains a word, the number of document it appears in, and then the ID of each document it appears in as well as the frequency with which it appears.
+
+(3) *Data Flow*
+-------------------
+
+Each file in the TARGET_DIRECTORY is loaded into a buffer. The buffer is then parsed for words. Each word found is added to the Index. If the word is not already in the Index, it is added, and the document it was found in was recorded. If the word has already been added to the Index, the program checks to see if there is record of word being found in the current file. If not, the document is added to the list of documents in which the word occurs. If the word has already been found in the current document, the frequency of the word in the document is increased. 
+
+After looping through all the files and completing the Index, each word in the Index will be written to a file: RESULTS FILENAME, along with the number of documents the word appears in and followed by the document ID and appearance frequency of the documents it appears in.
+
+The Index is cleared and all of its memory deallocated. 
+
+If no REWRITTEN FILENAME is given, the program is complete. If a filename is given, then the program is in testing mode. It loops though each line of the results file, adding each word and its corresponding information. At the end of the file the Index will have been completely rebuilt. 
+
+The Index is then rewritten into a file and the program completes.
+
+(4) *Data Structures*
+---------------------
+
+Index: a Hashtable structure that contains pointers to WordNodes. Each WordNode contains a pointer to a word, a pointer to the next WordNode, and a pointer to a DocumentNode. Each DocumentNode contains a pointer to the next DocumentNode, and holds a doc_id and frequency.
+
+(5) *PseudoCode*
+--------------------
+1. Check commandline arguments
+	inform the user if there are too little or too many arguments
+	check to see if the target_directory exists
+
+2. Initialize data structures
+	allocate the Index and set all of its pointers to NULL
+
+3. Get all files in Directory
+	For each file
+		Get next word
+		Add word to Index
+
+4. Write Index to File
+
+5. Clean the Index and deallocate all of its memory
+
+6. Check if there are four arguments.
+	If yes proceed. 
+	If no, quit.
+
+7. Read the file and construct a new Index from it
+
+8. Write the Index to the second file
+
+9. Clear the Index and deallocate all of its memory
+
+10. Done.
+
+
+*** Indexer Implementation Spec**
+---------------------------------------
+(1) DATA STRUCTURES AND VARIABLES
+
+typedef struct DocumentNode {
+  struct DocumentNode *next;         // pointer to the next member of the list.
+  int doc_id;                        // document identifier
+  int freq;                          // number of occurrences of the word
+} DocumentNode;
+
+typedef struct WordNode {
+  struct WordNode *next;            // pointer to the next word (for collisions)
+  char *word;                       // the word
+  struct DocumentNode *page;               // pointer to the first element of the page list.
+} WordNode;
+
+typedef struct HashTable {
+    WordNode *table[MAX_HASH_SLOT];     // actual hashtable
+} HashTable;
+
+HashTable *Index;
+
+(1) Prototype Definitions
+
+//HashTable Functions
+int addWord(char *w, int docId, HashTable *Index, int remakeFlag, int freq);
+	Adds a word to the Index, if it is not already in it, and records the docId and the freq. 
+	If the word is already in the Index, addWord finds where it is stored and compares DocIds with all the documents listed under the word. If a docId matches, then addWord increases the frequency with which that word is found in the document. If not, a new DocumentNode is created with a frequency of 1 and added to the list of that words DocumentNodes.
+
+char *LoadDocument (char *fileName);
+	Given a filename, it opens the document and loads the files contents into a string buffer which it then returns.
+
+int GetDocumentId (char *fileName);
+	Takes a character string of a filename and returns the corresponding int.
+
+int SaveIndexToFile(HashTable *Index, char *indexfile);
+	Takes an Index and a filename, and writes the Index into a file. Each line contains a word, the number of documents it occurs in, and the documents it occurs in and the number of times the word occurs in that document.
+
+HashTable *FileToIndex(char *indexfile);
+	Takes the file and reconstructs the Index from the file. 
+
+void inplace_rev( char * s );
+	Takes a string pointer and reverses the character array of what it points to.
+
+#define MAX_HASH_SLOT 10000
+	Each Index we create has this many possible hashslots. 
+
+Error/Test Conditions/Results
+------------------
+If the program is given an invalid directory it will quit and inform the user.
+
+If a file in the directory cannot be opened, the program will inform the user, exit use of that file, but continue to run and look at the other files.
